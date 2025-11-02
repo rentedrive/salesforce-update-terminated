@@ -23,30 +23,14 @@ import lib
 from lib import unix_to_rome
 
 col_mapping = {
-    'ACQUISITION_ID': 'Numero_Ordine__c',
-    'STATUS_DESC': 'Stato_Vettura__c',
-    'STATUS_DATE': {
-        'Accettato': 'Data_Stato_Accettato__c',
-        'Consegna Concordata': 'Data_Stato_Consegna_Concordata__c',
-        'Consegna Organizzata': 'Data_Stato_Consegna_Organizzata__c',
-        'Gestione Assicurazione': 'Data_Stato_Gestione_Assicurazione__c',
-        'In Immatricolazione Agita': 'Data_Stato_In_Immatricolazione_Agita__c',
-        'Richiesta Inclusione Assicurazione': 'Data_Stato_Richiesta_Incl_Assicurazione__c',
-        'Immatricolato': 'Data_Stato_Immatricolato__c',
-        'Consegnato': 'Data_Stato_Consegnato__c',
-        'TT2120 Sospeso': 'Data_Stato_TT2120_Sospeso__c',
-        'TT2120 Anticipo': 'Data_Stato_TT2120_Anticipo__c',
-        'Consegna Sospesa': 'Data_Stato_Consegna_Sospesa__c'
-    },
+    'LEASE_START': 'Data_Inizio_Contratto__c',
+    'LEASE_END_DATE': 'None',
+    'RETURN_DATE': 'Data_Fine_Contratto__c',   # Aggiorniamo Data Fine Contratto con la data di restituzione
+    'RETURN_ODO': 'Return_Odo__c',
     'REGISTRATION': 'Targa_Veicolo__c',
-    'EXPECTED_DELIVERY_DATE': 'Expected_Delivery_Date__c',
-    'PRIMA_DATA_CONS_CLIENTE': 'Prima_Data_Consegna__c',
-    'DEL_SUPPLIER_GROUP': 'Del_Supplier_Group__c',
-    'DELIVERY_TYPE_DESC': 'Delivery_Type_Desc__c',
-    'DATA_CONSEGNA_CONCORDATA': 'Data_Consegna_Concordata__c',
-    'BB_INSTALLATA': 'Black_Box__c',
-    'DATA_INSTALLAZIONE_BB': {'Campo info': 'Note__c', 'Azione': 'Modificare'},
-    'DISPONIBILITA_VEICOLO': 'Disponibilit_Veicolo__c'
+    'COLLECTION_REASON_DESC': 'causale__c',
+    'RINNOVO': 'Rinnovato__c',
+    'EOC_TOTALE': 'Costi_Extra_Contratto__c'
 }
 
 logger = logging.getLogger()
@@ -145,7 +129,7 @@ def handler(event, context):
             .render(**failed_mail_context)
 
         text_body = f"""
-        Aggiornamento Ordini – Failed
+        Aggiornamento Ordini Terminati – Failed
         Inizio elaborazione: {event['start_time'].strftime("%d/%m/%Y %H:%M:%S")},
         Fine elaborazione: {end_time.strftime("%d/%m/%Y %H:%M:%S")}
         Errore elaborazione: {error_traceback}
@@ -258,23 +242,25 @@ def update_records(event):
     )
     df_input.columns = [x.upper() for x in df_input.columns]
     df_input = df_input[event['input_columns']]
-    df_input['STATUS_DESC'] = df_input['STATUS_DESC'].apply(lambda s: ' '.join(w[0].upper() + w[1:] if w else '' for w in s.split()))
 
     input_buffer = io.BytesIO()
     with pd.ExcelWriter(input_buffer, engine='xlsxwriter') as writer:
         df_input.to_excel(writer, sheet_name=os.path.basename(latest_file_key).split('-')[0], index=False)
 
-    numero_ordini_acquisiti = len(df_input['ACQUISITION_ID'].unique())
+    numero_ordini_acquisiti = len(df_input['REGISTRATION'].unique())
 
-    df_input['STATUS_DATE'] = pd.to_datetime(df_input['STATUS_DATE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
-    df_input['EXPECTED_DELIVERY_DATE'] = pd.to_datetime(df_input['EXPECTED_DELIVERY_DATE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
-    df_input['PRIMA_DATA_CONS_CLIENTE'] = pd.to_datetime(df_input['PRIMA_DATA_CONS_CLIENTE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
-    df_input['DATA_CONSEGNA_CONCORDATA'] = pd.to_datetime(df_input['DATA_CONSEGNA_CONCORDATA'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
-    df_input['DATA_INSTALLAZIONE_BB'] = pd.to_datetime(df_input['DATA_INSTALLAZIONE_BB'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%d/%m/%Y')
-    df_input['BB_INSTALLATA'] = df_input['BB_INSTALLATA'].str.upper().map({'Y': True, 'N': False, 'NA': False}).fillna(False)
-    df_input['DISPONIBILITA_VEICOLO'] = df_input['DISPONIBILITA_VEICOLO'].map({'SI': True, 'NO': False}).fillna(False)
+    df_input['LEASE_START'] = pd.to_datetime(df_input['LEASE_START'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
+    df_input['LEASE_END_DATE'] = pd.to_datetime(df_input['LEASE_END_DATE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
+    df_input['RETURN_DATE'] = pd.to_datetime(df_input['RETURN_DATE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
+    df_input['RETURN_ODO'] = df_input['RETURN_ODO'].astype('Int32')
+    df_input['RINNOVO'] = df_input['RINNOVO'].str.upper().map({'RINNOVATO': True}).fillna(False)
+    df_input['EOC_TOTALE'] = pd.to_numeric(df_input['EOC_TOTALE'],errors='coerce')
+    df_input['EOC_TOTALE'] = df_input['EOC_TOTALE'].round(2)
 
-    input_acquisition_ids = list(set(df_input['ACQUISITION_ID'].values))
+    # Cancelliamo LEASE_END_DATE perchè al momnento non viene utilizzata
+    df_input.drop(columns=['LEASE_END_DATE'], inplace=True)
+
+    input_acquisition_ids = list(set(df_input['REGISTRATION'].values))
     dfs_ordini = list()
 
     for chuck in [input_acquisition_ids[i : i + event['order_chunk_size']] for i in range(0, len(input_acquisition_ids), event['order_chunk_size'])]:
@@ -283,45 +269,47 @@ def update_records(event):
     df_ordini = pd.concat(dfs_ordini).reset_index(drop=True)
     del dfs_ordini
 
-    if df_ordini['Numero_Ordine__c'].duplicated().any():
-        err_otp = df_ordini[df_ordini["Numero_Ordine__c"].duplicated()]
-        raise ValueError(f'Presenti duplicati per ACUISITION_ID: {err_otp}')
-
-    if len(set(df_input['STATUS_DESC'].unique()) - set(col_mapping['STATUS_DATE'].keys())) > 0:
-        err_otp = set(df_input['STATUS_DESC'].unique()) - set(col_mapping['STATUS_DATE'].values())
-        raise AttributeError(f"Nel file sono presenti stati non gestiti {err_otp}")
-
-    if len(set(col_mapping['STATUS_DATE'].values()) - set([item for item in df_ordini.columns if item.startswith('Data_Stato_')])) > 0:
-        err_otp = set(col_mapping['STATUS_DATE'].values()) - set([item for item in df_ordini.columns if item.startswith('Data_Stato_')])
-        raise AttributeError(f"Colonne DATA_STATO, presenti colonne mancanti in Salesforce {err_otp}")
+    if df_ordini['Targa_Veicolo__c'].duplicated().any():
+        err_otp = df_ordini[df_ordini["Targa_Veicolo__c"].duplicated()]
+        raise ValueError(f'Presenti duplicati per TARGA: {err_otp}')
 
     # Ordini presenti nel file di Arval ma non presenti in Salesforce
-    left = df_input.merge(df_ordini[['Numero_Ordine__c']], how='left',
-                          left_on='ACQUISITION_ID', right_on='Numero_Ordine__c', indicator=True)
-    right = df_input.merge(df_ordini[['Numero_Ordine__c']], how='right',
-                           left_on='ACQUISITION_ID', right_on='Numero_Ordine__c', indicator=True)
+    left = df_input.merge(
+        df_ordini[['Targa_Veicolo__c']],
+        how='left',
+        left_on='REGISTRATION',
+        right_on='Targa_Veicolo__c',
+        indicator=True
+    )
+    right = df_input.merge(
+        df_ordini[['Targa_Veicolo__c']],
+        how='right',
+        left_on='REGISTRATION',
+        right_on='Targa_Veicolo__c',
+        indicator=True
+    )
     df_ordini_no_salesforce = pd.concat([left, right])
-    df_ordini_no_salesforce = df_ordini_no_salesforce[df_ordini_no_salesforce['_merge'] == 'left_only'].drop(columns=['_merge', 'Numero_Ordine__c'])
+    df_ordini_no_salesforce = df_ordini_no_salesforce[df_ordini_no_salesforce['_merge'] == 'left_only'].drop(columns=['_merge', 'Targa_Veicolo__c'])
     del left, right
 
-    df_input = df_input.merge(df_ordini.set_index('Numero_Ordine__c')[['Id', 'Note__c']], how='inner', left_on='ACQUISITION_ID', right_index=True)
-    df_input = df_input[~df_input['Id'].isna()]
-    df_input.replace(np.nan, None, inplace=True)
+    df_input = df_input.merge(df_ordini[['Targa_Veicolo__c', 'Id']].set_index('Targa_Veicolo__c'), left_on='REGISTRATION', right_index=True, how='inner')
 
-    # Sistemiamo il campo nota con DATA INSTALLAZIONE BB
-    df_input['Note__c'] = df_input[['Note__c', 'DATA_INSTALLAZIONE_BB']].apply(lib.aggiorna_data_installazione, axis=1)
-    df_input.drop(columns=['DATA_INSTALLAZIONE_BB'], inplace=True)
-    del col_mapping['DATA_INSTALLAZIONE_BB']
-
-    # Splittiamo il campo STATUS_DATE nelle rispettive colonne di Salesforce
-    for status_desc, col_name in col_mapping['STATUS_DATE'].items():
-        df_input[col_name] = np.where(df_input['STATUS_DESC'] == status_desc, df_input['STATUS_DATE'], None)
-    df_input.drop(columns=['STATUS_DATE'], inplace=True)
-    del col_mapping['STATUS_DATE']
+    # Ordini per cui il valore di Arval differisce da quello di Salesforce
+    df_rinnovati_difference = df_input[['REGISTRATION', 'RINNOVO', 'Id']].merge(
+        df_ordini[['Targa_Veicolo__c', 'Rinnovato__c']].set_index('Targa_Veicolo__c'),
+        left_on='REGISTRATION',
+        right_index=True,
+        how='left'
+    )
+    df_rinnovati_difference = df_rinnovati_difference[df_rinnovati_difference['RINNOVO'] != df_rinnovati_difference['Rinnovato__c']]
+    df_rinnovati_difference.rename(columns={'RINNOVO': 'RINNOVO ARVAL', 'Rinnovato__c': 'RINNOVO SALESFORCE'}, inplace=True)
+    df_rinnovati_difference = df_rinnovati_difference[['REGISTRATION', 'Id', 'RINNOVO SALESFORCE', 'RINNOVO ARVAL']]
 
     df_info_mail = df_input.copy()
 
-    df_input = df_input.rename(columns=col_mapping).drop(columns=['Numero_Ordine__c'])
+    # Al momento non utilizziamo la colonna RINNOVO perchè non la aggiornamo secondo il file Arval, ma facciamo solo un check
+    df_input.drop(columns=['RINNOVO'], inplace=True)
+    df_input = df_input.rename(columns=col_mapping).drop(columns=['Targa_Veicolo__c'])
 
     df_ordini.set_index('Id', inplace=True)
 
@@ -369,6 +357,7 @@ def update_records(event):
     with pd.ExcelWriter(report_buffer, engine='xlsxwriter') as writer:
         df_success.to_excel(writer, sheet_name='Success', index=False)
         df_skipped.to_excel(writer, sheet_name='Skipped', index=False)
+        df_rinnovati_difference.to_excel(writer, sheet_name='Differenza Rinnovati', index=False)
         df_failed.to_excel(writer, sheet_name='Failed', index=False)
         df_ordini_no_salesforce.to_excel(writer, sheet_name='Ordini No Salesforce', index=False)
     report_buffer.seek(0)
@@ -422,6 +411,7 @@ def update_records(event):
         "update_success": df_success.shape[0],
         "update_skipped": df_skipped.shape[0],
         "update_failed": df_failed.shape[0],
+        "rinnovati_difference": df_rinnovati_difference.shape[0],
         "expiration_day": expiration_time.strftime("%d/%m/%Y"),
         "expiration_hour": expiration_time.strftime("%H:%M"),
         "zip_presigned_url": presigned_url_response

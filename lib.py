@@ -105,7 +105,7 @@ def build_soql(
     field_names = [f['name'] for f in obj_desc['fields']]
 
     soql = format_soql(
-        f"SELECT {', '.join(field_names)} FROM Ordine__c WHERE Numero_Ordine__c IN {{ids}} AND Stato__c = 'Attesa Consegna'",
+        f"SELECT {', '.join(field_names)} FROM Ordine__c WHERE Targa_Veicolo__c IN {{ids}}",
         ids=acquisition_ids
     )
 

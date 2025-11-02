@@ -57,21 +57,24 @@
                                 </tr>
                                 <tr>
                                     <td style="padding-top: 25px; color: #333333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 26px; font-weight: bold; line-height: 1.3;">
-                                        Aggiornamento Ordini – Successo
+                                        Aggiornamento Ordini Terminati – Successo
                                     </td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 15px 0 0 0; color: #555555; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
-                                <p>L'elaborazione del file ordini fornito da Arval iniziata in data {{data_inizio}} alle ore {{ora_inizio}}
+                                <p>L'elaborazione del file degli ordini terminati fornito da Arval iniziata in data {{data_inizio}} alle ore {{ora_inizio}}
                                     è stata completata con successo in data {{data_fine}} alle ore {{ora_fine}}.</p>
+                                <p>Il campo RINNOVO presente nel file di Arval non apporta alcuna modifica in Salesforce, è presente un resoconto dei record con
+                                discrepanze e il dettaglio nel file scaricabile dal link a fondo.</p>
                                         <p>Di seguito il riepilogo dei risultati:</p>
 
                                 <ul>
-                                    <li><strong>Ordini Acquisiti:</strong> {{ordini_acquisiti}} ordini sono stati processati e inseriti correttamente.</li>
+                                    <li><strong>Targhe Acquisite:</strong> {{ordini_acquisiti}} targhe sono stati processate e inserite correttamente.</li>
                                     <li><strong>Aggiornamenti Salesforce con Successo:</strong> {{update_success}} ordini sono stati aggiornati con successo in Salesforce.</li>
                                     <li><strong>Aggiornamenti Salesforce Saltati:</strong> {{update_skipped}} ordini non sono stati aggiornati perchè il file non presentava modifiche rispetto a Salesforce.</li>
-                                    <li><strong>Ordini Non Trovati:</strong> {{ordini_non_trovati}} ordini presenti nel file non sono stati individuati in Salesforce.</li>
+                                    <li><strong>Targhe Non Trovati:</strong> {{ordini_non_trovati}} targhe presenti nel file non sono state individuate in Salesforce.</li>
                                     <li><strong>Aggiornamenti Salesforce con Errori:</strong> {{update_failed}} ordini non sono stati aggiornati in Salesforce perchè sono stati riscontrati errori.</li>
+                                    <li><strong>Discrepanze Rinnovi:</strong> {{rinnovati_difference}} ordini presentano discrepanze rispetto alla presenza di un rinnovo.</li>
                                 </ul>
 
                                 <p>Per un'analisi completa che include il dettaglio degli ordini non trovati e degli errori di aggiornamento, è possibile scaricare il report completo cliccando sul pulsante qui sotto.</p>
