@@ -16,8 +16,8 @@ log_header() { echo -e "${BLUE}=== $1 ===${NC}"; }
 log_detail() { echo -e "${PURPLE}[DETAIL] $1${NC}"; }
 
 # --- Variabili Mutevoli ---
-NAME="salesforce-update-delivery"
-LAMBDA_NAME_PART="SalesforceUpdateDelivery"
+NAME="salesforce-update-terminated"
+LAMBDA_NAME_PART="SalesforceUpdateTerminat"
 
 # --- Variabili ---
 AWS_ACCOUNT_ID_DEV="786142130037"
@@ -128,7 +128,6 @@ deploy_to_environment() {
     if [ "$FUNCTION_COUNT" -eq 0 ]; then
         log_error "❌ No Lambda function found containing '${LAMBDA_NAME_PART}' in ${ENV_NAME}"
         log_info "💡 Make sure the Lambda function is deployed via Amplify first"
-        exit 1
     elif [ "$FUNCTION_COUNT" -gt 1 ]; then
         log_error "❌ Multiple Lambda functions found containing '${LAMBDA_NAME_PART}':"
         echo "$MATCHING_FUNCTIONS" | tr '\t' '\n' | while read func; do
