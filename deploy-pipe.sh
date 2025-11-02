@@ -128,6 +128,7 @@ deploy_to_environment() {
     if [ "$FUNCTION_COUNT" -eq 0 ]; then
         log_error "❌ No Lambda function found containing '${LAMBDA_NAME_PART}' in ${ENV_NAME}"
         log_info "💡 Make sure the Lambda function is deployed via Amplify first"
+        exit 1
     elif [ "$FUNCTION_COUNT" -gt 1 ]; then
         log_error "❌ Multiple Lambda functions found containing '${LAMBDA_NAME_PART}':"
         echo "$MATCHING_FUNCTIONS" | tr '\t' '\n' | while read func; do
