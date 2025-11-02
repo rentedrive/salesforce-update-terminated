@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{titolo}}</title>
+    <style>
+        /* Stili generali e reset */
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #e9ecef; }
+
+        /* Stili per link */
+        a {
+            color: #5A4FCF; /* Viola istituzionale */
+            font-weight: bold;
+        }
+
+        /* Stili per la traccia di errore */
+        .python-traceback {
+            background-color: #f8f8f8;
+            color: #333;
+            border: 1px solid #ddd;
+            border-left: 7px solid #f44336; /* Bordo rosso per evidenziare */
+            padding: 10px;
+            margin-top: 1px; /* Aggiunge spazio sopra il blocco */
+            font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        /* Stili per dispositivi mobili */
+        @media screen and (max-width: 720px) {
+            .container {
+                width: 100% !important;
+            }
+            .content-padding {
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0 !important; padding: 0 !important; background-color: #e9ecef;">
+
+    <div style="display: none; font-size: 1px; color: #e9ecef; line-height: 1px; font-family: Arial, sans-serif; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+        Processo automatico Rent&Drive concluso con errori.
+    </div>
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td bgcolor="#e9ecef" align="center" style="padding: 20px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 720px;" class="container">
+
+                    <tr>
+                        <td>
+                            <!-- MODIFICA 1: L'URL dell'immagine ora punta a un bucket S3.
+                                 Assicurati che l'immagine su S3 sia pubblicamente accessibile. -->
+                            <img src="{{ copertina_rentedrive_url }}" alt="Copertina Rent&Drive" width="720" style="display: block; width: 100%; height: auto;">
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td bgcolor="#ffffff" align="left" style="padding: 30px 40px 40px 40px; border-radius: 0 0 8px 8px;" class="content-padding">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                     <td align="left" style="color: #888888; font-family: Arial, sans-serif; font-size: 14px; padding-bottom: 15px; border-bottom: 1px solid #e9ecef;">
+                                        <!-- MODIFICA 2: La data è ora una variabile -->
+                                         Automatic AWS Job – {{job_owner}} – {{send_ts}}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-top: 25px; color: #333333; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 26px; font-weight: bold; line-height: 1.3;">
+                                        Aggiornamento Ordini – Failed
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td style="padding: 15px 0 0 0; color: #555555; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+                                    <p>L'elaborazione del file ordini fornito da Arval iniziata in data {{data_inizio}} alle ore {{ora_inizio}}
+                                        è stata completata con errori in data {{data_fine}} alle ore {{ora_fine}}.</p>
+                                        <p>Una notifica dell'errore è già stata inviata al referente del processo all'indirizzo mail {{mail_owner}}.</p>
+                                        <p>Di seguito il resoconto dell'errore riscontrato:</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-top: 2px;">
+                                        <div class="python-traceback">
+                                            <pre><code>{{error_code}}</code></pre>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr>
+                         <td align="center" style="padding: 20px 40px; color: #888888; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.5;" class="content-padding">
+                            <p style="margin: 0;"><strong>Rent&Drive Srl</strong> - Via Bramante da Urbino 2, 20851 Lissone (MB), Italia</p>
+                            <p style="margin-top: 10px; font-style: italic;">
+                                Le informazioni contenute in questa e-mail sono riservate e per uso esclusivo del destinatario.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                </td>
+        </tr>
+    </table>
+
+</body>
+</html>
