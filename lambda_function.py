@@ -1,7 +1,6 @@
 import pandas as pd
 import logging
 import sys, os
-import numpy as np
 from dateutil.relativedelta import relativedelta
 from requests.models import Response
 from jinja2 import Environment, FileSystemLoader
@@ -20,7 +19,6 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 import lib
-from lib import unix_to_rome
 
 col_mapping = {
     'LEASE_START': 'Data_Inizio_Contratto__c',
@@ -384,7 +382,7 @@ def update_records(event):
         ExpiresIn=event['download_availability_days']*24*60*60
     )
     try:
-        expiration_time = unix_to_rome(int(re.search(r"[?&]Expires=([^&]+)", presigned_url_response).group(1)))
+        expiration_time = lib.unix_to_rome(int(re.search(r"[?&]Expires=([^&]+)", presigned_url_response).group(1)))
     except:
         expiration_time = datetime.now(tz=ZoneInfo("Europe/Rome")) + relativedelta(days=event['download_availability_days'])
 
