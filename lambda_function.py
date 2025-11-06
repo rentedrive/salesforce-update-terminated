@@ -21,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 import lib
 
 col_mapping = {
-    'LEASE_START': 'Data_Inizio_Contratto__c',
+    'LEASE_START': 'None',
     'LEASE_END_DATE': 'None',
     'RETURN_DATE': 'Data_Fine_Contratto__c',   # Aggiorniamo Data Fine Contratto con la data di restituzione
     'RETURN_ODO': 'Return_Odo__c',
@@ -256,7 +256,7 @@ def update_records(event):
     df_input['EOC_TOTALE'] = df_input['EOC_TOTALE'].round(2)
 
     # Cancelliamo LEASE_END_DATE perchè al momnento non viene utilizzata
-    df_input.drop(columns=['LEASE_END_DATE'], inplace=True)
+    df_input.drop(columns=['LEASE_END_DATE', 'LEASE_START'], inplace=True)
 
     input_acquisition_ids = list(set(df_input['REGISTRATION'].values))
     dfs_ordini = list()
