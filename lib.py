@@ -8,6 +8,7 @@ try:
     from zoneinfo import ZoneInfo
 except ImportError:
     import pytz
+import pandas as pd
 
 
 def unix_to_rome(ts: int) -> datetime:
@@ -47,6 +48,13 @@ def get_salesforce_session(
     return Salesforce(**credentials)
 
 
+def fetch_ordini_all(sf: Salesforce, soql: str, chunk_size: int = 2000) -> pd.DataFrame:
+    results = sf.query_all(soql)
+    records = results.get('records', [])
+    cleaned = [{k: v for k, v in rec.items() if k != 'attributes'} for rec in records]
+    return pd.json_normalize(cleaned)
+
+
 def build_soql(
     sf_session: Salesforce,
     acquisition_ids: list[str]
@@ -63,7 +71,7 @@ def build_soql(
     field_names = [f['name'] for f in obj_desc['fields']]
 
     soql = format_soql(
-        f"SELECT {', '.join(field_names)} FROM Ordine__c WHERE Targa_Veicolo__c IN {{ids}} AND Stato__c = 'Live'",
+        f"SELECT {', '.join(field_names)} FROM Ordine__c WHERE Targa_Veicolo__c IN {{ids}} AND (Stato__c = 'Live' OR Stato__c = 'Chiuso')",
         ids=acquisition_ids
     )
 

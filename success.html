@@ -72,8 +72,10 @@
                                     <li><strong>Targhe Acquisite:</strong> {{ordini_acquisiti}} targhe sono stati processate e inserite correttamente.</li>
                                     <li><strong>Aggiornamenti Salesforce con Successo:</strong> {{update_success}} ordini sono stati aggiornati con successo in Salesforce.</li>
                                     <li><strong>Aggiornamenti Salesforce Saltati:</strong> {{update_skipped}} ordini non sono stati aggiornati perchè il file non presentava modifiche rispetto a Salesforce.</li>
-                                    <li><strong>Targhe Non Trovati:</strong> {{ordini_non_trovati}} targhe presenti nel file non sono state individuate in Salesforce.</li>
                                     <li><strong>Aggiornamenti Salesforce con Errori:</strong> {{update_failed}} ordini non sono stati aggiornati in Salesforce perchè sono stati riscontrati errori.</li>
+                                    <li><strong>Contratti Chiusi:</strong> {{contratti_closed}} sono stati chiusi in quanto lo stato in Salesforce non risultava essere 'Chiuso'.</li>
+                                    <li><strong>Contratti Già Chiusi Acquisiti:</strong> {{contratti_still_closed}} presentavano già lo stato 'Chiuso' al momento dell'esecuzione.</li>
+                                    <li><strong>Targhe Non Trovate:</strong> {{ordini_non_trovati}} targhe presenti nel file non sono state individuate in Salesforce.</li>
                                     <li><strong>Discrepanze Rinnovi:</strong> {{rinnovati_difference}} ordini presentano discrepanze rispetto alla presenza di un rinnovo.</li>
                                 </ul>
 

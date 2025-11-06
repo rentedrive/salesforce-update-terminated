@@ -267,9 +267,11 @@ def update_records(event):
     df_ordini = pd.concat(dfs_ordini).reset_index(drop=True)
     del dfs_ordini
 
-    if df_ordini['Targa_Veicolo__c'].duplicated().any():
-        err_otp = df_ordini[df_ordini["Targa_Veicolo__c"].duplicated()]
-        raise ValueError(f'Presenti duplicati per TARGA: {err_otp}')
+    # if df_ordini.duplicated(subset=['Targa_Veicolo__c', 'Stato__c']).any():
+    #     err_otp = df_ordini[df_ordini.duplicated(subset=['Targa_Veicolo__c', 'Stato__c'], keep=False)]
+    #     raise ValueError(f'Presenti duplicati per combinazione TARGA e STATO: \n{err_otp}')
+    # else:
+    #     print("Nessun duplicato trovato per la combinazione di Targa e Stato.")
 
     # Ordini presenti nel file di Arval ma non presenti in Salesforce
     left = df_input.merge(
@@ -290,16 +292,19 @@ def update_records(event):
     df_ordini_no_salesforce = df_ordini_no_salesforce[df_ordini_no_salesforce['_merge'] == 'left_only'].drop(columns=['_merge', 'Targa_Veicolo__c'])
     del left, right
 
-    df_input = df_input.merge(df_ordini[['Targa_Veicolo__c', 'Id']].set_index('Targa_Veicolo__c'), left_on='REGISTRATION', right_index=True, how='inner')
+    scol_to_keep = ['Targa_Veicolo__c', 'Id', 'Stato__c']
+    df_input = df_input.merge(df_ordini[scol_to_keep].set_index('Targa_Veicolo__c'), left_on='REGISTRATION', right_index=True, how='inner')
 
     # Ordini per cui il valore di Arval differisce da quello di Salesforce
     df_rinnovati_difference = df_input[['REGISTRATION', 'RINNOVO', 'Id']].merge(
-        df_ordini[['Targa_Veicolo__c', 'Rinnovato__c']].set_index('Targa_Veicolo__c'),
-        left_on='REGISTRATION',
+        df_ordini[df_ordini['Stato__c'] == 'Live'][['Id', 'Rinnovato__c', 'Stato__c']].set_index('Id'),
+        left_on='Id',
         right_index=True,
-        how='left'
+        how='inner'
     )
-    df_rinnovati_difference = df_rinnovati_difference[df_rinnovati_difference['RINNOVO'] != df_rinnovati_difference['Rinnovato__c']]
+    df_rinnovati_difference = df_rinnovati_difference[
+        df_rinnovati_difference['RINNOVO'] != df_rinnovati_difference['Rinnovato__c']
+    ]
     df_rinnovati_difference.rename(columns={'RINNOVO': 'RINNOVO ARVAL', 'Rinnovato__c': 'RINNOVO SALESFORCE'}, inplace=True)
     df_rinnovati_difference = df_rinnovati_difference[['REGISTRATION', 'Id', 'RINNOVO SALESFORCE', 'RINNOVO ARVAL']]
 
@@ -316,21 +321,35 @@ def update_records(event):
 
         to_modify = list()
         to_skip = list()
+        still_closed = list()
+        to_close = list()
 
         for input_row in df_input.to_dict(orient='records'):
+
             rec = dict()
-            for k, v in input_row.items():
-                if k == 'Id' or (pd.notnull(v) and df_ordini.loc[input_row['Id']][k] != v):
-                    rec[k] = v
-            if set(rec.keys()) != {'Id'}:
-                to_modify.append(rec)
+
+            # Se è chiuso non modifichiamo alcun campo nell'ordine
+            if input_row['Stato__c'] == 'Chiuso':
+                still_closed.append(input_row)
             else:
-                rec['status_code'] = 200
-                rec['status_description'] = 'Skipped'
-                to_skip.append(rec)
+                rec['Stato__c'] = 'Chiuso'
+                to_close.append(input_row)
+
+                for k, v in input_row.items():
+                    if k == 'Id' or (pd.notnull(v) and df_ordini.loc[input_row['Id']][k] != v):
+                        rec[k] = v
+                if set(rec.keys()) != {'Id'}:
+                    to_modify.append(rec)
+                else:
+                    rec['status_code'] = 200
+                    rec['status_description'] = 'Skipped'
+                    to_skip.append(rec)
+
+        logger.info(to_modify)
+        logger.info(to_skip)
 
         if len(to_modify) == 0:
-            df_modify = pd.DataFrame(columns=['status_code', 'Id', 'status_description'])
+            df_modify = pd.DataFrame(columns=list(df_input.columns)+['status_code', 'status_description'])
             break
 
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -340,13 +359,27 @@ def update_records(event):
         else:
             logger.info(df_modify)
 
-    df_skipped = pd.DataFrame.from_dict(to_skip)
-
-    df_skipped = df_info_mail.merge(df_skipped, on='Id',how='right')
     df_modify = df_info_mail.merge(df_modify, on='Id', how='right')
-
     df_success = df_modify[df_modify['status_code'] == 200].drop(columns=['status_code']).rename(columns={'status_description': 'Stato Esecuzione'})
     df_failed = df_modify[df_modify['status_code'] != 200].drop(columns=['status_code']).rename(columns={'status_description': 'Stato Esecuzione'})
+
+    if len(still_closed) > 0:
+        df_still_closed = pd.DataFrame.from_dict(still_closed)
+        df_still_closed = df_info_mail.merge(df_still_closed, on='Id', how='right')
+    else:
+        df_still_closed = pd.DataFrame(columns=df_input.columns)
+
+    if len(to_close) > 0:
+        df_closed = pd.DataFrame.from_dict(to_close)
+        df_closed = df_info_mail.merge(df_closed, on='Id', how='right')
+    else:
+        df_closed = pd.DataFrame(columns=df_input.columns)
+
+    if len(to_skip) > 0:
+        df_skipped = pd.DataFrame.from_dict(to_skip)
+        df_skipped = df_info_mail.merge(df_skipped, on='Id',how='right')
+    else:
+        df_skipped = pd.DataFrame(columns=df_input.columns)
 
     # Generazione zip di log
 
@@ -355,6 +388,8 @@ def update_records(event):
     with pd.ExcelWriter(report_buffer, engine='xlsxwriter') as writer:
         df_success.to_excel(writer, sheet_name='Success', index=False)
         df_skipped.to_excel(writer, sheet_name='Skipped', index=False)
+        df_closed.to_excel(writer, sheet_name='Contratti Chiusi', index=False)
+        df_still_closed.to_excel(writer, sheet_name='Contratti Già Chiusi', index=False)
         df_rinnovati_difference.to_excel(writer, sheet_name='Differenza Rinnovati', index=False)
         df_failed.to_excel(writer, sheet_name='Failed', index=False)
         df_ordini_no_salesforce.to_excel(writer, sheet_name='Ordini No Salesforce', index=False)
@@ -410,6 +445,8 @@ def update_records(event):
         "update_skipped": df_skipped.shape[0],
         "update_failed": df_failed.shape[0],
         "rinnovati_difference": df_rinnovati_difference.shape[0],
+        "contratti_closed": df_closed.shape[0],
+        "contratti_still_closed": df_still_closed.shape[0],
         "expiration_day": expiration_time.strftime("%d/%m/%Y"),
         "expiration_hour": expiration_time.strftime("%H:%M"),
         "zip_presigned_url": presigned_url_response
