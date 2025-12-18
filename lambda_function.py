@@ -236,10 +236,10 @@ def update_records(event):
         path=file_path,
         boto3_session=aws_session,
         dtype=str,
-        na_values=['NaN']
+        na_values=['NaN', 'ND', 'None']
     )
     df_input.columns = [x.upper() for x in df_input.columns]
-    df_input = df_input[event['input_columns']]
+    df_input = df_input[event['input_columns']].copy()
 
     input_buffer = io.BytesIO()
     with pd.ExcelWriter(input_buffer, engine='xlsxwriter') as writer:
@@ -255,6 +255,8 @@ def update_records(event):
     df_input['EOC_TOTALE'] = pd.to_numeric(df_input['EOC_TOTALE'],errors='coerce')
     df_input['EOC_TOTALE'] = df_input['EOC_TOTALE'].round(2)
 
+    df_input['COLLECTION_REASON_DESC'] = df_input['COLLECTION_REASON_DESC'].str.title()
+
     # Cancelliamo LEASE_END_DATE perchè al momnento non viene utilizzata
     df_input.drop(columns=['LEASE_END_DATE', 'LEASE_START'], inplace=True)
 
@@ -267,11 +269,21 @@ def update_records(event):
     df_ordini = pd.concat(dfs_ordini).reset_index(drop=True)
     del dfs_ordini
 
-    # if df_ordini.duplicated(subset=['Targa_Veicolo__c', 'Stato__c']).any():
-    #     err_otp = df_ordini[df_ordini.duplicated(subset=['Targa_Veicolo__c', 'Stato__c'], keep=False)]
-    #     raise ValueError(f'Presenti duplicati per combinazione TARGA e STATO: \n{err_otp}')
-    # else:
-    #     print("Nessun duplicato trovato per la combinazione di Targa e Stato.")
+    # TODO: pensare se è il caso di inserire un controllo
+
+    # Controllo picklist causale termine
+    record_types_ordine = list()
+    for rt in sf_session.query_all("SELECT Id, Name, DeveloperName FROM RecordType WHERE SobjectType = 'Ordine__c'").get('records', []):
+        record_types_ordine.append(rt['Id'])
+
+    avaible_values_causale_termine = lib.get_unique_available_values_picklist(
+        sf=sf_session,
+        obj_name='Ordine__c',
+        record_types_obj=record_types_ordine,
+        field='causale__c'
+    )
+    df_causale_termine_no_salesfoce = df_input[~df_input['COLLECTION_REASON_DESC'].isin(avaible_values_causale_termine) & df_input['COLLECTION_REASON_DESC'].notnull()]
+    del avaible_values_causale_termine
 
     # Ordini presenti nel file di Arval ma non presenti in Salesforce
     left = df_input.merge(
@@ -393,6 +405,8 @@ def update_records(event):
         df_rinnovati_difference.to_excel(writer, sheet_name='Differenza Rinnovati', index=False)
         df_failed.to_excel(writer, sheet_name='Failed', index=False)
         df_ordini_no_salesforce.to_excel(writer, sheet_name='Ordini No Salesforce', index=False)
+        if df_causale_termine_no_salesfoce.shape[0] > 0:
+            df_causale_termine_no_salesfoce.to_excel(writer, sheet_name='Casuali No Salesforce', index=False)
     report_buffer.seek(0)
 
     # Comprimi in ZIP
@@ -445,6 +459,7 @@ def update_records(event):
         "update_skipped": df_skipped.shape[0],
         "update_failed": df_failed.shape[0],
         "rinnovati_difference": df_rinnovati_difference.shape[0],
+        "missing_casuale_termine": len(df_causale_termine_no_salesfoce['COLLECTION_REASON_DESC'].unique()),
         "contratti_closed": df_closed.shape[0],
         "contratti_still_closed": df_still_closed.shape[0],
         "expiration_day": expiration_time.strftime("%d/%m/%Y"),

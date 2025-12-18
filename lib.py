@@ -9,6 +9,7 @@ try:
 except ImportError:
     import pytz
 import pandas as pd
+import html
 
 
 def unix_to_rome(ts: int) -> datetime:
@@ -71,7 +72,7 @@ def build_soql(
     field_names = [f['name'] for f in obj_desc['fields']]
 
     soql = format_soql(
-        f"SELECT {', '.join(field_names)} FROM Ordine__c WHERE Targa_Veicolo__c IN {{ids}} AND (Stato__c = 'Live' OR Stato__c = 'Chiuso')",
+        f"SELECT {', '.join(field_names)} FROM Ordine__c WHERE Targa_Veicolo__c IN {{ids}}",
         ids=acquisition_ids
     )
 
@@ -80,3 +81,42 @@ def build_soql(
             'description': 'Success',
             'output': soql.replace("\\'", "")
         }
+
+
+def get_available_values_picklist(
+        sf: Salesforce,
+        obj_name: str,
+        record_types_obj: list[str],
+        field: str
+) -> dict[str, list[str]]:
+
+    ret = dict.fromkeys(record_types_obj, list())
+
+    for rt in record_types_obj:
+
+        desc = sf.__getattr__(obj_name).describe()
+        field_info = next(f for f in desc['fields'] if f['name'] == field)
+        ret[rt] = [html.unescape(v['value']) for v in field_info.get('picklistValues', [])]
+
+    return ret
+
+
+def get_unique_available_values_picklist(
+        sf: Salesforce,
+        obj_name: str,
+        record_types_obj: list[str],
+        field: str
+) -> list[str]:
+
+    values_per_picklist = get_available_values_picklist(sf, obj_name, record_types_obj, field)
+
+    if len(values_per_picklist) == 0:
+        return list()
+
+    ret = set(values_per_picklist[record_types_obj[0]])
+
+    for rt in record_types_obj[1:]:
+        if ret != set(values_per_picklist[rt]):
+            raise Exception(f'ERRORE: per il campo {field} la picklist assume valori diversi per recordtype')
+
+    return list(ret)
