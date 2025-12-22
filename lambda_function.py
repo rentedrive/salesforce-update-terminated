@@ -24,7 +24,8 @@ col_mapping = {
     'LEASE_START': 'None',
     'LEASE_END_DATE': 'None',
     'RETURN_DATE': 'Data_Fine_Contratto__c',   # Aggiorniamo Data Fine Contratto con la data di restituzione
-    'RETURN_ODO': 'Return_Odo__c',
+    'RETURN_ODO': 'Rilevazione_Km_Percorsi__c',
+    'DATA_RILEVAZIONE_KM': 'Data_Ultima_Rilevazione_Km__c',
     'REGISTRATION': 'Targa_Veicolo__c',
     'COLLECTION_REASON_DESC': 'causale__c',
     'RINNOVO': 'Rinnovato__c',
@@ -251,6 +252,7 @@ def update_records(event):
     df_input['LEASE_END_DATE'] = pd.to_datetime(df_input['LEASE_END_DATE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
     df_input['RETURN_DATE'] = pd.to_datetime(df_input['RETURN_DATE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
     df_input['RETURN_ODO'] = df_input['RETURN_ODO'].astype('Int32')
+    df_input['DATA_RILEVAZIONE_KM'] = df_input['RETURN_DATE'].copy()
     df_input['RINNOVO'] = df_input['RINNOVO'].str.upper().map({'RINNOVATO': True}).fillna(False)
     df_input['EOC_TOTALE'] = pd.to_numeric(df_input['EOC_TOTALE'],errors='coerce')
     df_input['EOC_TOTALE'] = df_input['EOC_TOTALE'].round(2)
