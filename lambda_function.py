@@ -239,14 +239,13 @@ def update_records(event):
         dtype=str,
         na_values=['NaN', 'ND', 'None']
     )
+    df_input = df_input[~df_input['REGISTRATION'].isna()]
     df_input.columns = [x.upper() for x in df_input.columns]
     df_input = df_input[event['input_columns']].copy()
 
     input_buffer = io.BytesIO()
     with pd.ExcelWriter(input_buffer, engine='xlsxwriter') as writer:
         df_input.to_excel(writer, sheet_name=os.path.basename(latest_file_key).split('-')[0], index=False)
-
-    numero_ordini_acquisiti = len(df_input['REGISTRATION'].unique())
 
     df_input['LEASE_START'] = pd.to_datetime(df_input['LEASE_START'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
     df_input['LEASE_END_DATE'] = pd.to_datetime(df_input['LEASE_END_DATE'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%Y-%m-%d')
@@ -272,6 +271,8 @@ def update_records(event):
     del dfs_ordini
 
     # TODO: pensare se è il caso di inserire un controllo
+
+    numero_ordini_acquisiti = len(df_ordini)
 
     # Controllo picklist causale termine
     record_types_ordine = list()
