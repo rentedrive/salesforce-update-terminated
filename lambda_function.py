@@ -15,6 +15,7 @@ import traceback
 import boto3
 import ast
 import re
+import numpy as np
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -257,6 +258,13 @@ def update_records(event):
     df_input['EOC_TOTALE'] = df_input['EOC_TOTALE'].round(2)
 
     df_input['COLLECTION_REASON_DESC'] = df_input['COLLECTION_REASON_DESC'].str.title()
+
+    df_input['COLLECTION_REASON_DESC'] = np.where(
+        df_input['REMARKETING_ATT_DESC'].str.contains('tomasi', case=False, na=False),
+        'Riscatto Veicolo',
+        df_input['COLLECTION_REASON_DESC']
+    )
+    df_input.drop(columns=['REMARKETING_ATT_DESC'], inplace=True)
 
     # Cancelliamo LEASE_END_DATE perchè al momnento non viene utilizzata
     df_input.drop(columns=['LEASE_END_DATE', 'LEASE_START'], inplace=True)
