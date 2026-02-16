@@ -240,6 +240,8 @@ def update_records(event):
         dtype=str,
         na_values=['NaN', 'ND', 'None']
     )
+    df_input['REGISTRATION'] = df_input['REGISTRATION'].str[:7].str.upper()
+    df_input = df_input[df_input['REGISTRATION'].str.match(r'^[A-Z]{2}\d{3}[A-Z]{2}$', na=False)]
     df_input = df_input[~df_input['REGISTRATION'].isna()]
     df_input.columns = [x.upper() for x in df_input.columns]
     df_input = df_input[event['input_columns']].copy()
