@@ -262,7 +262,12 @@ def update_records(event):
     df_input['COLLECTION_REASON_DESC'] = df_input['COLLECTION_REASON_DESC'].str.title()
 
     df_input['COLLECTION_REASON_DESC'] = np.where(
-        df_input['REMARKETING_ATT_DESC'].str.contains('tomasi', case=False, na=False),
+        df_input['REMARKETING_ATT_DESC'].str.lower().str.contains('tomasi', case=False, na=False),
+        'Riscatto Veicolo',
+        df_input['COLLECTION_REASON_DESC']
+    )
+    df_input['COLLECTION_REASON_DESC'] = np.where(
+        df_input['REMARKETING_ATT_DESC'].str.lower().str.contains('ecoprogram', case=False, na=False),
         'Riscatto Veicolo',
         df_input['COLLECTION_REASON_DESC']
     )
